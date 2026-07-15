@@ -18,6 +18,12 @@ agents are function calls, progress streams over an in-memory queue, no Redis, n
 inter-service HTTP. The module layout still keeps clean seams (`agents/`,
 `pipeline.py`, `llm.py`, `schemas.py`), so if one agent ever needs its own model
 or box, promoting it to a service is a contained change rather than a rewrite.
+## Prerequisites
+
+Before running the application, ensure you have the following installed:
+- **Docker & Docker Compose** (recommended for containerized setup)
+- **Python 3.9+** (required for local runs)
+- An LLM backend: **Ollama** (running locally) or **LM Studio**
 
 ## Run
 
@@ -91,3 +97,46 @@ python -m tests.run_all        # or: pytest -q
 - `test_schemas` — contracts parse + round-trip.
 - `test_loop` — all four revision-loop paths with the model faked, events captured.
 - `test_server` — a full run streamed through the HTTP endpoint, ending in a saved post.
+
+## Configuration
+
+The application can be configured using environment variables (stored in `.env`).
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BLOG_PROVIDER` | Backend provider (`ollama` or `lmstudio`) | `ollama` |
+| `BLOG_BASE_URL` | Endpoint url for the LLM API | `http://localhost:11434/v1` |
+| `BLOG_API_KEY` | API key (if needed by your model backend) | `not-needed` |
+| `BLOG_MODEL` | Default model for agents | `llama3.1` (Ollama) or `local-model` (LM Studio) |
+| `BLOG_MODEL_STRONG` | High-reasoning model for Writer and Reviewer nodes | Same as `BLOG_MODEL` |
+| `BLOG_MODEL_FAST` | Faster, lightweight model for Research, Outline, and SEO | Same as `BLOG_MODEL` |
+| `BLOG_MAX_REVISIONS` | Max number of verifier-gated revision loop cycles | `2` |
+| `OUTPUT_DIR` | Location where generated markdown posts are saved | `output` |
+
+## Contributing
+
+Contributions are welcome! To set up a development environment locally:
+
+1. **Clone the repository**:
+   ```bash
+   git clone git@github.com:siddik-web/blog-agents.git
+   cd blog-agents
+   ```
+
+2. **Create a virtual environment and install dependencies**:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Run the offline test suite**:
+   ```bash
+   python -m tests.run_all
+   ```
+
+Please format code properly and ensure all unit tests pass before submitting a Pull Request.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
