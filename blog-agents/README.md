@@ -43,6 +43,8 @@ python -m app.cli "your topic here"    # or the CLI
 
 ## The interface
 
+![UI screenshot](assets/screenshot.png)
+
 The UI streams each stage live: the pipeline board lights each agent as it runs,
 and the reviewer→writer **feedback cable** pulses whenever a revision routes —
 the loop is the thing you watch. Finished posts render with their SEO metadata
