@@ -1,0 +1,8 @@
+{
+  "title": "Agentic Workflows Are a Small-Team Superpower",
+  "sections": [
+    {"heading": "The toil tax on small teams", "summary": "Small teams pay the highest price for repetitive work.", "talking_points": ["No slack in the schedule", "Context-switching cost"]},
+    {"heading": "Autonomy is not the goal", "summary": "Human gates beat full autonomy for trust and safety.", "talking_points": ["Verifier-gated loops", "PR-only changes"]},
+    {"heading": "Start with one loop", "summary": "Pick a narrow, verifiable task first.", "talking_points": ["Changelog loop example", "Measure before scaling"]}
+  ]
+}

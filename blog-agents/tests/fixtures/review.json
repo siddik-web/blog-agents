@@ -1,0 +1,8 @@
+{
+  "verdict": "revise",
+  "summary": "Strong angle but one key point is missing and the intro is weak.",
+  "issues": [
+    {"severity": "blocker", "location": "Start with one loop", "problem": "Does not actually name a verifiable first loop as the brief requires.", "suggestion": "Add a concrete example like a changelog loop with a pass/fail check."},
+    {"severity": "minor", "location": "intro", "problem": "Opening is flat.", "suggestion": "Lead with the toil-tax framing as a hook."}
+  ]
+}

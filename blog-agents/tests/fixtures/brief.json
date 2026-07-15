@@ -1,0 +1,13 @@
+{
+  "topic": "Why small teams should adopt agentic workflows",
+  "audience": "engineering leads at small web agencies",
+  "angle": "Agentic workflows pay off fastest for small teams, not big ones, because the bottleneck is people-hours not process.",
+  "key_points": [
+    "Small teams feel repetitive toil disproportionately",
+    "Human-in-the-loop gates matter more than full autonomy",
+    "Start with one narrow, verifiable loop before scaling"
+  ],
+  "sources": [
+    {"title": "Team's own Hermes orchestration experience", "url": "", "note": "First-hand lessons on verifier-gated loops"}
+  ]
+}
