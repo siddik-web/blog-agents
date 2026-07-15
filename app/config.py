@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from dotenv import load_dotenv
+
+# Load local environment variables from .env if present
+load_dotenv()
 
 PROVIDER = os.getenv("BLOG_PROVIDER", "ollama").lower()
 
