@@ -1,0 +1,11 @@
+.DS_Store
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ignore nested app environment and output files
+blog-agents/.env
+blog-agents/output/*
+!blog-agents/output/.gitkeep
