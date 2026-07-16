@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>blog-agents · pipeline</title>
+<title>Loop Engineering Dashboard · blog-agents</title>
 <style>
   :root{
-    --bg:#0b0f1a; --panel:#111826; --panel-2:#0d131f; --line:#1d2740;
-    --ink:#e7ecf7; --muted:#7f8daa; --faint:#4a5878;
-    --signal:#6b9bff; --signal-2:#9d7bff;
-    --approve:#4fd1a5; --revise:#ffb454; --blocker:#ff6b6b;
+    --bg:#070a13; --panel:#0f1626; --panel-2:#0a0f1b; --line:#1b253c;
+    --ink:#e3e9f5; --muted:#7886a0; --faint:#404d6b;
+    --signal:#5c8dff; --signal-2:#8b5cff;
+    --approve:#3ec193; --revise:#e09c3f; --blocker:#e55a5a;
     --mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0}
+  html,body{margin:0;height:100%}
   body{
     background:var(--bg); color:var(--ink); font-family:var(--sans);
     line-height:1.5; -webkit-font-smoothing:antialiased;
@@ -24,38 +24,47 @@
     background-size:44px 44px; background-position:center;
   }
   body::before{content:"";position:fixed;inset:0;background:
-    radial-gradient(120% 80% at 50% -10%,transparent 40%,var(--bg) 100%);pointer-events:none}
-  .wrap{max-width:1120px;margin:0 auto;padding:28px 22px 80px;position:relative}
+    radial-gradient(120% 80% at 50% -10%,transparent 30%,var(--bg) 95%);pointer-events:none}
+  .wrap{max-width:1160px;margin:0 auto;padding:24px 16px 80px;position:relative}
 
   /* header */
-  header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:26px}
-  .brand{display:flex;align-items:baseline;gap:14px}
-  .brand h1{font-size:26px;letter-spacing:-.02em;margin:0;font-weight:650}
-  .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
-  .health{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--faint);box-shadow:0 0 0 0 transparent;transition:.3s}
-  .dot.up{background:var(--approve);box-shadow:0 0 12px 1px color-mix(in srgb,var(--approve) 70%,transparent)}
-  .dot.down{background:var(--blocker);box-shadow:0 0 12px 1px color-mix(in srgb,var(--blocker) 70%,transparent)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand h1{font-size:24px;letter-spacing:-.02em;margin:0;font-weight:700;background:linear-gradient(90deg,#fff,var(--muted));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .brand .tag{font-family:var(--mono);font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--signal);font-weight:600}
+  .health{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--panel-2);padding:6px 12px;border:1px solid var(--line);border-radius:20px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);transition:.3s}
+  .dot.up{background:var(--approve);box-shadow:0 0 10px 2px var(--approve)}
+  .dot.down{background:var(--blocker);box-shadow:0 0 10px 2px var(--blocker)}
+
+  /* tab navigation */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:24px;background:var(--panel-2);padding:4px;border-radius:8px}
+  .tab-btn{background:transparent;border:0;color:var(--muted);font-family:var(--mono);font-size:12px;font-weight:600;padding:8px 16px;border-radius:6px;cursor:pointer;transition:.15s;text-transform:uppercase;letter-spacing:.05em}
+  .tab-btn:hover{color:var(--ink);background:rgba(255,255,255,.03)}
+  .tab-btn.active{color:#fff;background:var(--line);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+
+  /* tab content */
+  .tab-content{display:none}
+  .tab-content.active{display:block}
 
   /* control bar */
   .console{background:linear-gradient(180deg,var(--panel),var(--panel-2));
-    border:1px solid var(--line);border-radius:14px;padding:16px;
-    display:grid;grid-template-columns:1fr 220px 120px auto;gap:12px;align-items:end}
-  .field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+    border:1px solid var(--line);border-radius:12px;padding:16px;
+    display:grid;grid-template-columns:1fr 220px 120px auto;gap:12px;align-items:end;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+  .field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.15em;
     text-transform:uppercase;color:var(--muted);margin:0 0 6px 2px}
-  .field input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
-    border-radius:9px;padding:11px 12px;font-family:var(--sans);font-size:14px;outline:none;transition:.15s}
-  .field input:focus{border-color:var(--signal);box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 25%,transparent)}
-  button.run{background:linear-gradient(180deg,var(--signal),#4f7fe6);color:#fff;border:0;
-    border-radius:9px;padding:12px 20px;font-weight:600;font-size:14px;cursor:pointer;
-    font-family:var(--sans);white-space:nowrap;transition:.15s;height:44px}
-  button.run:hover:not(:disabled){filter:brightness(1.08)}
-  button.run:disabled{opacity:.55;cursor:progress}
-  button.run:focus-visible{outline:2px solid var(--signal-2);outline-offset:2px}
-  .timer{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:2px;min-height:16px}
+  .field input, .field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    border-radius:8px;padding:10px 12px;font-family:var(--sans);font-size:13px;outline:none;transition:.15s}
+  .field input:focus, .field select:focus{border-color:var(--signal);box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 20%,transparent)}
+  button.primary-btn{background:linear-gradient(180deg,var(--signal),#4d74e0);color:#fff;border:0;
+    border-radius:8px;padding:10px 18px;font-weight:600;font-size:13px;cursor:pointer;
+    font-family:var(--sans);white-space:nowrap;transition:.15s;height:38px}
+  button.primary-btn:hover:not(:disabled){filter:brightness(1.08)}
+  button.primary-btn:disabled{opacity:.5;cursor:progress}
+  .timer{font-family:var(--mono);font-size:11px;color:var(--muted);margin:6px 0 0 2px;min-height:16px}
 
   /* board */
-  .board{position:relative;margin:34px 0 8px;padding:58px 4px 8px;
+  .board{position:relative;margin:28px 0 8px;padding:52px 4px 8px;
     display:flex;gap:0;align-items:stretch;justify-content:space-between}
   #cable{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
   #cable-path{fill:none;stroke:var(--line);stroke-width:2}
@@ -63,160 +72,312 @@
     stroke-dasharray:10 320;stroke-dashoffset:0;opacity:0;filter:drop-shadow(0 0 6px var(--signal))}
   #cable-flow.pulse{opacity:1;animation:travel 1.1s ease-in forwards}
   @keyframes travel{from{stroke-dashoffset:330}to{stroke-dashoffset:0}}
-  .cable-tag{position:absolute;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  .cable-tag{position:absolute;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
     text-transform:uppercase;color:var(--revise);opacity:0;transition:.3s;transform:translateY(4px)}
   .cable-tag.on{opacity:1;transform:none}
 
   .mod{flex:1 1 0;min-width:0;background:var(--panel-2);border:1px solid var(--line);
-    border-radius:12px;padding:13px 13px 14px;position:relative;transition:.25s;overflow:hidden}
-  .mod .n{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.16em}
-  .mod h3{margin:2px 0 0;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
-  .mod .read{margin-top:9px;font-family:var(--mono);font-size:11px;color:var(--muted);
-    min-height:30px;word-break:break-word}
+    border-radius:10px;padding:12px;position:relative;transition:.25s;overflow:hidden}
+  .mod .n{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.15em}
+  .mod h3{margin:1px 0 0;font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+  .mod .read{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+    min-height:30px;word-break:break-word;line-height:1.4}
   .mod .read b{color:var(--ink);font-weight:600}
-  .mod .stat{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;
+  .mod .stat{position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%;
     background:var(--faint);transition:.25s}
-  .mod .badge{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:10px;
-    padding:2px 7px;border-radius:20px;border:1px solid transparent;letter-spacing:.06em}
-  .connector{flex:0 0 26px;align-self:center;height:2px;background:var(--line);position:relative;top:0;transition:.3s}
+  .mod .badge{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:9px;
+    padding:1px 6px;border-radius:15px;border:1px solid transparent;letter-spacing:.05em}
+  .connector{flex:0 0 20px;align-self:center;height:2px;background:var(--line);position:relative;top:0;transition:.3s}
   .connector.hot{background:linear-gradient(90deg,var(--signal),var(--signal-2))}
 
-  .mod.active{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal),0 0 22px -6px var(--signal);
-    background:color-mix(in srgb,var(--signal) 8%,var(--panel-2))}
+  .mod.active{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal),0 0 16px -4px var(--signal);
+    background:color-mix(in srgb,var(--signal) 6%,var(--panel-2))}
   .mod.active .stat{background:var(--signal);animation:blink 1s ease-in-out infinite}
-  @keyframes blink{50%{opacity:.35}}
+  @keyframes blink{50%{opacity:.3}}
   .mod.done{border-color:color-mix(in srgb,var(--approve) 40%,var(--line))}
   .mod.done .stat{background:var(--approve);animation:none}
-  .mod.warn{border-color:color-mix(in srgb,var(--revise) 55%,var(--line))}
+  .mod.warn{border-color:color-mix(in srgb,var(--revise) 50%,var(--line))}
   .mod.warn .stat{background:var(--revise)}
 
-  .badge.approve{color:var(--approve);border-color:color-mix(in srgb,var(--approve) 45%,transparent)}
-  .badge.revise{color:var(--revise);border-color:color-mix(in srgb,var(--revise) 45%,transparent)}
-  .badge.rev{color:var(--signal);border-color:color-mix(in srgb,var(--signal) 45%,transparent)}
+  .badge.approve{color:var(--approve);border-color:color-mix(in srgb,var(--approve) 40%,transparent);background:color-mix(in srgb,var(--approve) 10%,transparent)}
+  .badge.revise{color:var(--revise);border-color:color-mix(in srgb,var(--revise) 40%,transparent);background:color-mix(in srgb,var(--revise) 10%,transparent)}
+  .badge.rev{color:var(--signal);border-color:color-mix(in srgb,var(--signal) 40%,transparent);background:color-mix(in srgb,var(--signal) 10%,transparent)}
+
+  /* verification rubric */
+  .rubric-box{margin-top:12px;background:rgba(255,255,255,.015);border:1px solid var(--line);border-radius:8px;padding:10px}
+  .rubric-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .rubric-item{display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:3px 0}
+  .rubric-item span.status{font-weight:600;font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:4px}
+  .rubric-item span.status.passed{color:var(--approve);background:rgba(62,193,147,.1)}
+  .rubric-item span.status.failed{color:var(--blocker);background:rgba(229,90,90,.1)}
 
   /* lower grid */
-  .lower{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
+  .lower{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
   @media(max-width:900px){
     .console{grid-template-columns:1fr}
     .board{flex-direction:column;padding-left:46px}
     .connector{width:2px;height:22px;margin-left:22px;align-self:flex-start}
     .lower{grid-template-columns:1fr}
   }
-  .card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,.1)}
   .card > .head{display:flex;align-items:center;justify-content:space-between;
-    padding:12px 15px;border-bottom:1px solid var(--line)}
-  .card .head span{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .card .head span{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
 
   /* event log */
-  .log{padding:6px 0;max-height:340px;overflow:auto;font-family:var(--mono);font-size:12px}
-  .log .row{display:flex;gap:10px;padding:6px 15px;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+  .log{padding:6px 0;max-height:360px;overflow:auto;font-family:var(--mono);font-size:11.5px}
+  .log .row{display:flex;gap:10px;padding:5px 14px;border-bottom:1px solid color-mix(in srgb,var(--line) 40%,transparent)}
   .log .row:last-child{border-bottom:0}
-  .log .t{color:var(--faint);flex:0 0 52px}
-  .log .msg{color:var(--muted)}
+  .log .t{color:var(--faint);flex:0 0 45px}
+  .log .msg{color:var(--muted);flex-grow:1}
   .log .msg b{color:var(--ink);font-weight:600}
   .log .k{flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--faint)}
   .log .k.signal{background:var(--signal)} .log .k.approve{background:var(--approve)}
   .log .k.revise{background:var(--revise)} .log .k.blocker{background:var(--blocker)}
-  .empty{padding:26px 16px;color:var(--muted);font-size:13px;font-family:var(--mono)}
-  .issue{margin:4px 0 0 18px;color:var(--muted)}
+  .empty{padding:24px 16px;color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .issue{margin:4px 0 0 16px;color:var(--muted)}
   .issue .sev{color:var(--blocker)} .issue .sev.minor{color:var(--revise)}
 
   /* result */
-  .meta{padding:13px 15px;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-family:var(--mono);font-size:11px}
-  .meta .cell span{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;display:block;font-size:10px}
+  .meta{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-family:var(--mono);font-size:10.5px}
+  .meta .cell span{color:var(--faint);letter-spacing:.1em;text-transform:uppercase;display:block;font-size:9px}
   .meta .cell div{color:var(--ink);margin-top:2px;word-break:break-word}
-  .post{padding:8px 20px 20px;max-height:520px;overflow:auto}
-  .post h1{font-size:22px;letter-spacing:-.02em;margin:18px 0 6px}
-  .post h2{font-size:17px;margin:20px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--line)}
-  .post h3{font-size:14.5px;margin:16px 0 4px;color:var(--signal)}
-  .post p{margin:8px 0;color:#cdd6e8}
-  .post ul{margin:6px 0;padding-left:20px;color:#cdd6e8}
-  .post li{margin:3px 0}
-  .post code{font-family:var(--mono);font-size:.9em;background:var(--bg);padding:1px 5px;border-radius:5px}
-  .post blockquote{margin:10px 0;padding:8px 14px;border-left:3px solid var(--revise);
-    background:color-mix(in srgb,var(--revise) 8%,transparent);color:var(--ink);border-radius:0 8px 8px 0}
+  .post{padding:8px 16px 16px;max-height:500px;overflow:auto}
+  .post h1{font-size:20px;letter-spacing:-.02em;margin:16px 0 6px;color:#fff}
+  .post h2{font-size:15.5px;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+  .post h3{font-size:13.5px;margin:14px 0 4px;color:var(--signal)}
+  .post p{margin:6px 0;color:#c4cddb;font-size:13.5px}
+  .post ul{margin:5px 0;padding-left:18px;color:#c4cddb}
+  .post li{margin:2px 0}
+  .post code{font-family:var(--mono);font-size:.9em;background:var(--bg);padding:1px 4px;border-radius:4px}
+  .post blockquote{margin:8px 0;padding:6px 12px;border-left:3px solid var(--revise);
+    background:color-mix(in srgb,var(--revise) 6%,transparent);color:var(--ink);border-radius:0 6px 6px 0}
   .post a{color:var(--signal)}
-  .acts{display:flex;gap:8px}
+  .acts{display:flex;gap:6px}
   .acts button{background:var(--bg);border:1px solid var(--line);color:var(--ink);
-    font-family:var(--mono);font-size:11px;padding:6px 11px;border-radius:8px;cursor:pointer;transition:.15s}
+    font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:6px;cursor:pointer;transition:.15s}
   .acts button:hover{border-color:var(--signal);color:var(--signal)}
-  .acts button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
-  .banner{margin:0;padding:11px 15px;font-size:13px;background:color-mix(in srgb,var(--blocker) 14%,transparent);
-    border-bottom:1px solid color-mix(in srgb,var(--blocker) 40%,var(--line));color:#ffd4d4}
+  .banner{margin:0;padding:10px 14px;font-size:12px;background:color-mix(in srgb,var(--blocker) 12%,transparent);
+    border-bottom:1px solid color-mix(in srgb,var(--blocker) 35%,var(--line));color:#ffd2d2}
   .hidden{display:none}
-  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* Scheduler Styles (Level 3) */
+  .schedule-container{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:850px){.schedule-container{grid-template-columns:1fr}}
+  .scheduler-form{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .scheduler-list{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .scheduler-table{width:100%;border-collapse:collapse;font-size:12px}
+  .scheduler-table th{background:var(--panel);text-align:left;padding:10px 12px;font-family:var(--mono);font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--line)}
+  .scheduler-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--ink)}
+  .scheduler-table tr:last-child td{border-bottom:0}
+  .toggle-btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:4px 8px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:10px}
+  .toggle-btn.on{border-color:var(--approve);color:var(--approve)}
+  .toggle-btn:hover{filter:brightness(1.2)}
+  .status-pill{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600}
+  .status-pill.active{color:var(--approve);background:rgba(62,193,147,.12)}
+  .status-pill.inactive{color:var(--muted);background:rgba(255,255,255,.05)}
+
+  .webhook-card{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:20px}
+  .webhook-card pre{background:var(--bg);border:1px solid var(--line);padding:10px;border-radius:6px;overflow:auto;margin:10px 0 0;font-size:11px;color:var(--signal)}
+
+  /* Optimizer Styles (Level 4) */
+  .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:850px){.opt-grid{grid-template-columns:1fr}}
+  .guidelines-box{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .guidelines-list{margin:10px 0;padding-left:20px;color:#c4cddb;font-size:13px}
+  .guidelines-list li{margin:6px 0}
+  .traces-box{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .opt-summary{background:rgba(92,141,255,.05);border:1px solid var(--signal);border-radius:8px;padding:12px;margin:12px 0;font-size:12.5px;line-height:1.4}
+  .opt-summary h4{margin:0 0 6px;color:var(--signal);font-size:13px}
+  .opt-summary p{margin:0;color:#c4cddb}
+
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">
-      <h1>blog&#8209;agents</h1>
-      <span class="tag">signal chain</span>
+      <h1>Loop Engineering</h1>
+      <span class="tag">4-Loop Stack</span>
     </div>
     <div class="health" id="health">
       <span class="dot" id="dot"></span><span id="health-text">checking model…</span>
     </div>
   </header>
 
-  <div class="console">
-    <div class="field">
-      <label for="topic">Topic</label>
-      <input id="topic" placeholder="why small teams should adopt agentic workflows" autocomplete="off" />
-    </div>
-    <div class="field">
-      <label for="audience">Audience</label>
-      <input id="audience" value="general readers" autocomplete="off" />
-    </div>
-    <div class="field">
-      <label for="rev">Max revisions</label>
-      <input id="rev" type="number" min="0" max="6" value="2" />
-    </div>
-    <div>
-      <button class="run" id="go">Generate</button>
-    </div>
-  </div>
-  <div class="timer" id="timer"></div>
+  <!-- tab bar -->
+  <nav class="tabs">
+    <button class="tab-btn active" onclick="switchTab('workspace')">1. Pipeline Workspace</button>
+    <button class="tab-btn" onclick="switchTab('scheduler')">3. Scheduler & Webhooks</button>
+    <button class="tab-btn" onclick="switchTab('optimizer')">4. Hill-Climbing Auto-Opt</button>
+  </nav>
 
-  <!-- pipeline board: the feedback cable from reviewer back to writer is the point -->
-  <div class="board" id="board">
-    <svg id="cable"><defs>
-      <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#9d7bff"/><stop offset="1" stop-color="#6b9bff"/>
-      </linearGradient></defs>
-      <path id="cable-path"></path><path id="cable-flow"></path>
-    </svg>
-    <span class="cable-tag" id="cable-tag">↩ revise</span>
+  <!-- TAB 1: WORKSPACE -->
+  <div id="tab-workspace" class="tab-content active">
+    <div class="console">
+      <div class="field">
+        <label for="topic">Topic</label>
+        <input id="topic" placeholder="why small teams should adopt agentic workflows" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="audience">Audience</label>
+        <input id="audience" value="general readers" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="rev">Max revisions (Loop 2)</label>
+        <input id="rev" type="number" min="0" max="6" value="2" />
+      </div>
+      <div>
+        <button class="primary-btn" id="go">Generate Post</button>
+      </div>
+    </div>
+    <div class="timer" id="timer"></div>
 
-    <div class="mod" id="m-research"><div class="stat"></div><div class="n">01</div><h3>Research</h3><div class="read">—</div></div>
-    <div class="connector" data-c="0"></div>
-    <div class="mod" id="m-outline"><div class="stat"></div><div class="n">02</div><h3>Outline</h3><div class="read">—</div></div>
-    <div class="connector" data-c="1"></div>
-    <div class="mod" id="m-seo"><div class="stat"></div><div class="n">03</div><h3>SEO</h3><div class="read">—</div></div>
-    <div class="connector" data-c="2"></div>
-    <div class="mod" id="m-writer"><div class="stat"></div><div class="n">04</div><h3>Writer</h3><div class="read">—</div></div>
-    <div class="connector" data-c="3"></div>
-    <div class="mod" id="m-reviewer"><div class="stat"></div><div class="n">05</div><h3>Reviewer</h3><div class="read">—</div></div>
-    <div class="connector" data-c="4"></div>
-    <div class="mod" id="m-save"><div class="stat"></div><div class="n">06</div><h3>Save</h3><div class="read">—</div></div>
-  </div>
+    <div class="board" id="board">
+      <svg id="cable"><defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#8b5cff"/><stop offset="1" stop-color="#5c8dff"/>
+        </linearGradient></defs>
+        <path id="cable-path"></path><path id="cable-flow"></path>
+      </svg>
+      <span class="cable-tag" id="cable-tag">↩ revise (loop 2)</span>
 
-  <div class="lower">
-    <div class="card">
-      <div class="head"><span>Activity</span><span id="run-topic"></span></div>
-      <div class="log" id="log"><div class="empty">Enter a topic and press Generate to watch the agents work. Each stage reports as it runs; a revision sends the draft back up the chain.</div></div>
+      <div class="mod" id="m-research"><div class="stat"></div><div class="n">01</div><h3>Research (Loop 1)</h3><div class="read">—</div></div>
+      <div class="connector" data-c="0"></div>
+      <div class="mod" id="m-outline"><div class="stat"></div><div class="n">02</div><h3>Outline</h3><div class="read">—</div></div>
+      <div class="connector" data-c="1"></div>
+      <div class="mod" id="m-seo"><div class="stat"></div><div class="n">03</div><h3>SEO</h3><div class="read">—</div></div>
+      <div class="connector" data-c="2"></div>
+      <div class="mod" id="m-writer"><div class="stat"></div><div class="n">04</div><h3>Writer</h3><div class="read">—</div></div>
+      <div class="connector" data-c="3"></div>
+      <div class="mod" id="m-reviewer"><div class="stat"></div><div class="n">05</div><h3>Reviewer (Loop 2)</h3><div class="read">—</div></div>
+      <div class="connector" data-c="4"></div>
+      <div class="mod" id="m-save"><div class="stat"></div><div class="n">06</div><h3>Save</h3><div class="read">—</div></div>
     </div>
 
-    <div class="card hidden" id="result">
-      <div class="head"><span>Post</span>
-        <div class="acts">
-          <button id="copy">Copy Markdown</button>
-          <button id="dl">Download .md</button>
+    <div class="lower">
+      <div class="card">
+        <div class="head"><span>Activity Log</span><span id="run-topic"></span></div>
+        <div class="log" id="log">
+          <div class="empty">Enter a topic and press Generate Post to watch the agents work. Look out for Level 1 tool calls in Research and Level 2 grading checks.</div>
         </div>
       </div>
-      <p class="banner hidden" id="banner"></p>
-      <div class="meta" id="meta"></div>
-      <div class="post" id="post"></div>
+
+      <div class="card hidden" id="result">
+        <div class="head"><span>Generated Blog Post</span>
+          <div class="acts">
+            <button id="copy">Copy Markdown</button>
+            <button id="dl">Download</button>
+          </div>
+        </div>
+        <p class="banner hidden" id="banner"></p>
+        <div class="meta" id="meta"></div>
+        <div class="post" id="post"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: SCHEDULER & WEBHOOKS -->
+  <div id="tab-scheduler" class="tab-content">
+    <div class="schedule-container">
+      <div class="scheduler-form">
+        <h3 style="margin-top:0;font-size:16px;letter-spacing:-.01em">Create Background Schedule</h3>
+        <p style="font-size:12px;color:var(--muted);margin-top:-6px">Runs the pipeline periodically in the background (Level 3 Event Loop).</p>
+        
+        <div style="display:grid;gap:12px;margin-top:16px">
+          <div class="field">
+            <label for="sched-topic">Topic</label>
+            <input id="sched-topic" placeholder="e.g. Advancements in Deep Learning" />
+          </div>
+          <div class="field">
+            <label for="sched-audience">Audience</label>
+            <input id="sched-audience" value="tech enthusiasts" />
+          </div>
+          <div class="field">
+            <label for="sched-interval">Interval (Seconds)</label>
+            <input id="sched-interval" type="number" min="10" value="60" />
+          </div>
+          <button class="primary-btn" onclick="addSchedule()" style="margin-top:4px">Create and Enable Schedule</button>
+        </div>
+      </div>
+
+      <div class="scheduler-list">
+        <div class="head" style="padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)">
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Active Triggers</span>
+        </div>
+        <table class="scheduler-table">
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Interval</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-rows">
+            <!-- Populated via API -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="lower" style="grid-template-columns:1fr">
+      <div class="card">
+        <div class="head"><span>Trigger History (Event-Driven Logs)</span></div>
+        <div class="log" id="sched-history" style="max-height:240px">
+          <div class="empty">No schedules triggered yet. Toggle or create a schedule to watch runs occur in the background.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-card">
+      <h3 style="margin-top:0;font-size:15px;letter-spacing:-.01em">Webhook Endpoint</h3>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:-4px;line-height:1.4">
+        You can trigger a blog writing run externally by posting a JSON payload containing <code>topic</code> and <code>audience</code> to the API webhook:
+      </p>
+      <pre>curl -X POST http://localhost:8000/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "Deploying Multi-Agent Networks", "audience": "DevOps Engineers"}'</pre>
+    </div>
+  </div>
+
+  <!-- TAB 3: HILL-CLIMBING OPTIMIZER -->
+  <div id="tab-optimizer" class="tab-content">
+    <div class="opt-grid">
+      <div class="guidelines-box">
+        <h3 style="margin-top:0;font-size:16px;letter-spacing:-.01em">Adaptive Writing Rules</h3>
+        <p style="font-size:12px;color:var(--muted);margin-top:-6px">Programmatically generated by the Hill-Climbing loop analyzing past reviewer issues.</p>
+        
+        <div id="opt-status-box" class="opt-summary hidden">
+          <h4 id="opt-summary-title">Optimization Report</h4>
+          <p id="opt-summary-text"></p>
+        </div>
+
+        <ul class="guidelines-list" id="guidelines-ul">
+          <li class="empty" style="padding-left:0;list-style:none">No guidelines compiled yet. Generate some posts first!</li>
+        </ul>
+        
+        <button class="primary-btn" id="optimize-btn" onclick="triggerOptimization()" style="margin-top:10px">Analyze Traces & Optimize Prompts</button>
+      </div>
+
+      <div class="traces-box">
+        <div class="head" style="padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)">
+          <span style="font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Run Traces Database</span>
+        </div>
+        <table class="scheduler-table">
+          <thead>
+            <tr>
+              <th>Topic</th>
+              <th>Revisions</th>
+              <th>Blockers</th>
+              <th>Success</th>
+            </tr>
+          </thead>
+          <tbody id="trace-rows">
+            <!-- Populated via API -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -225,6 +386,19 @@
 const $=s=>document.querySelector(s);
 const MODS=["research","outline","seo","writer","reviewer","save"];
 let raw="", fullContent="", startTs=0, timerId=null;
+
+/* ---- navigation ---- */
+function switchTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.classList.remove('active');
+    if(btn.textContent.toLowerCase().includes(tabId)) btn.classList.add('active');
+  });
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  $(`#tab-${tabId}`).classList.add('active');
+  if(tabId==='workspace') drawCable();
+  if(tabId==='scheduler') fetchSchedules();
+  if(tabId==='optimizer') { fetchTraces(); fetchGuidelines(); }
+}
 
 /* ---- health ---- */
 async function health(){
@@ -247,8 +421,11 @@ function setState(name,cls){const m=mod(name);m.classList.remove("active","done"
 function read(name,html){mod(name).querySelector(".read").innerHTML=html;}
 function connector(i,on){const c=document.querySelector(`.connector[data-c="${i}"]`);if(c)c.classList.toggle("hot",on);}
 function resetBoard(){
-  MODS.forEach(n=>{setState(n,"");read(n,"—");
-    const b=mod(n).querySelector(".badge");if(b)b.remove();});
+  MODS.forEach(n=>{
+    setState(n,"");read(n,"—");
+    const b=mod(n).querySelector(".badge");if(b)b.remove();
+    const rb=mod(n).querySelector(".rubric-box");if(rb)rb.remove();
+  });
   for(let i=0;i<5;i++)connector(i,false);
   $("#result").classList.add("hidden");
   $("#log").innerHTML="";
@@ -262,6 +439,7 @@ function badge(name,text,cls){
 /* ---- feedback cable geometry ---- */
 function drawCable(){
   const board=$("#board"), svg=$("#cable");
+  if(!board || !svg) return;
   const b=board.getBoundingClientRect();
   const wr=mod("writer").getBoundingClientRect(), rr=mod("reviewer").getBoundingClientRect();
   const stacked=window.matchMedia("(max-width:900px)").matches;
@@ -325,6 +503,16 @@ function renderMd(md){
 function handle(ev){
   const s=ev.stage, d=ev.detail||{};
   if(ev.kind==="run_start"){ $("#run-topic").textContent=ev.topic; logRow("signal",`<b>run started</b> · “${ev.topic}” · up to ${ev.max_revisions} revisions`); return; }
+  if(ev.kind==="tool_start"){
+    logRow("signal",`<b>Level 1 Agent Loop</b> · research calling tool <b>${ev.tool}</b>: <i>"${ev.query}"</i>`);
+    read("research",`🔍 tool call: <b>${ev.tool}</b><br>query: <i>"${ev.query}"</i>`);
+    return;
+  }
+  if(ev.kind==="tool_done"){
+    logRow("signal",`<b>Level 1 Agent Loop</b> · tool <b>${ev.tool}</b> returned ${ev.count} results`);
+    read("research",`🔍 tool finished: <b>${ev.tool}</b><br>retrieved ${ev.count} sources`);
+    return;
+  }
   if(ev.kind==="start"){
     setState(s,"active");
     const idx=MODS.indexOf(s); if(idx>0)connector(idx-1,true);
@@ -343,9 +531,22 @@ function handle(ev){
       setState(s,rev?"done":"warn");
       read(s,`verdict <b>${d.verdict}</b><br>${d.blockers} blocker · ${d.minor} minor`);
       badge("reviewer",d.verdict,rev?"approve":"revise");
+      
+      // Level 2 Rubric visual update
+      let rubricHtml = `<div class="rubric-box"><div class="rubric-title">Verification Rubric</div>`;
+      (d.checks||[]).forEach(c=>{
+        rubricHtml += `<div class="rubric-item"><span>${c.name}</span><span class="status ${c.status}">${c.status}</span></div>`;
+      });
+      rubricHtml += `</div>`;
+      
+      const revMod = mod("reviewer");
+      const oldBox = revMod.querySelector(".rubric-box");
+      if(oldBox) oldBox.remove();
+      revMod.insertAdjacentHTML('beforeend', rubricHtml);
+
       let issues="";
       (d.issues||[]).forEach(i=>{issues+=`<div class="issue"><span class="sev ${i.severity}">${i.severity}</span> · ${i.location}: ${i.problem}</div>`;});
-      logRow(rev?"approve":"revise",`reviewer: <b>${d.verdict}</b> — ${d.blockers} blocker(s), ${d.minor} minor`,issues);
+      logRow(rev?"approve":"revise",`reviewer verdict: <b>${d.verdict}</b> — ${d.blockers} blocker(s), ${d.minor} minor`,issues);
     }
     if(s==="save"){ setState(s,d.unresolved?"warn":"done"); read(s,`saved<br>${d.unresolved?d.unresolved+" open blocker(s)":"clean"}`); showResult(d); }
     return;
@@ -399,13 +600,13 @@ async function run(){
   }catch(e){ logRow("blocker",`<b>connection lost</b> — ${e.message}`); }
   finally{
     clearInterval(timerId);
-    $("#go").disabled=false; $("#go").textContent="Generate";
+    $("#go").disabled=false; $("#go").textContent="Generate Post";
   }
 }
 $("#go").addEventListener("click",run);
 $("#topic").addEventListener("keydown",e=>{if(e.key==="Enter")run();});
 
-/* ---- result actions ---- */
+/* ---- copy & download ---- */
 $("#copy").addEventListener("click",()=>{
   const body=fullContent.replace(/^---[\s\S]*?---\s*/,"");
   navigator.clipboard.writeText(body).then(()=>{$("#copy").textContent="Copied";setTimeout(()=>$("#copy").textContent="Copy Markdown",1200);});
@@ -415,6 +616,113 @@ $("#dl").addEventListener("click",()=>{
   const blob=new Blob([fullContent],{type:"text/markdown"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=slug+".md";a.click();
 });
+
+/* ---- Level 3: Scheduler ---- */
+async function fetchSchedules(){
+  try{
+    const r=await fetch("/api/schedules"); const j=await r.json();
+    let rowsHtml = "";
+    j.schedules.forEach(s=>{
+      rowsHtml += `
+        <tr>
+          <td><b>${s.topic}</b><br><span style="color:var(--muted)">Audience: ${s.audience}</span></td>
+          <td>${s.interval_seconds}s</td>
+          <td><span class="status-pill ${s.enabled?'active':'inactive'}">${s.enabled?'ENABLED':'DISABLED'}</span></td>
+          <td><button class="toggle-btn ${s.enabled?'on':''}" onclick="toggleSchedule('${s.id}')">${s.enabled?'Disable':'Enable'}</button></td>
+        </tr>`;
+    });
+    $("#schedule-rows").innerHTML = rowsHtml || `<tr><td colspan="4" style="text-align:center;color:var(--muted)">No background triggers configured.</td></tr>`;
+    
+    let histHtml = "";
+    j.history.reverse().forEach(h=>{
+      histHtml += `<div class="row">
+        <div class="k ${h.status.includes('Fail')?'blocker':h.status==='Completed'?'approve':'signal'}"></div>
+        <div class="t">${h.time}</div>
+        <div class="msg">Background job <b>${h.id}</b> for “${h.topic}”: <b>${h.status}</b></div>
+      </div>`;
+    });
+    $("#sched-history").innerHTML = histHtml || `<div class="empty">No schedules triggered yet. Toggle or create a schedule to watch runs occur in the background.</div>`;
+  }catch(e){ console.error("Error fetching schedules:", e); }
+}
+
+async function addSchedule(){
+  const topic = $("#sched-topic").value.trim();
+  const audience = $("#sched-audience").value.trim();
+  const interval = parseInt($("#sched-interval").value);
+  if(!topic) return;
+  
+  try{
+    await fetch("/api/schedules/create", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({topic, audience, interval_seconds: interval})
+    });
+    $("#sched-topic").value = "";
+    fetchSchedules();
+  }catch(e){ console.error("Error creating schedule:", e); }
+}
+
+async function toggleSchedule(id){
+  try{
+    await fetch(`/api/schedules/${id}/toggle`, {method: "POST"});
+    fetchSchedules();
+  }catch(e){ console.error("Error toggling schedule:", e); }
+}
+
+/* ---- Level 4: Hill-Climbing ---- */
+async function fetchTraces(){
+  try{
+    const r=await fetch("/api/traces"); const j=await r.json();
+    let rowsHtml = "";
+    j.traces.forEach(t=>{
+      rowsHtml += `
+        <tr>
+          <td><b>${t.topic}</b></td>
+          <td>${t.revision_count}</td>
+          <td>${t.unresolved_blockers}</td>
+          <td><span class="status-pill ${t.success?'active':'inactive'}">${t.success?'SUCCESS':'UNRESOLVED'}</span></td>
+        </tr>`;
+    });
+    $("#trace-rows").innerHTML = rowsHtml || `<tr><td colspan="4" style="text-align:center;color:var(--muted)">No traces recorded yet. Run the pipeline first.</td></tr>`;
+  }catch(e){ console.error("Error fetching traces:", e); }
+}
+
+async function fetchGuidelines(){
+  try{
+    const r=await fetch("/api/guidelines"); const j=await r.json();
+    if(j.guidelines){
+      let liHtml = "";
+      j.guidelines.split("\n").forEach(line=>{
+        if(line.trim()) liHtml += `<li>${line.replace(/^-/,'').trim()}</li>`;
+      });
+      $("#guidelines-ul").innerHTML = liHtml;
+    }else{
+      $("#guidelines-ul").innerHTML = `<li class="empty" style="padding-left:0;list-style:none">No guidelines compiled yet. Compile them below.</li>`;
+    }
+  }catch(e){ console.error("Error fetching guidelines:", e); }
+}
+
+async function triggerOptimization(){
+  $("#optimize-btn").disabled = true;
+  $("#optimize-btn").textContent = "Analyzing traces & rewriting prompt rules…";
+  try{
+    const r = await fetch("/api/optimize", {method: "POST"});
+    const j = await r.json();
+    if(j.status === "success"){
+      $("#opt-status-box").classList.remove("hidden");
+      $("#opt-summary-title").textContent = "Trace Optimization Report";
+      $("#opt-summary-text").innerHTML = `<b>Analysis:</b> ${j.analysis}<br><br><b>Updated Rules:</b><br>${j.guidelines_text.replace(/\n/g, '<br>')}`;
+      fetchGuidelines();
+      fetchTraces();
+    }else{
+      alert(j.reason);
+    }
+  }catch(e){ console.error("Error triggering optimization:", e); }
+  finally{
+    $("#optimize-btn").disabled = false;
+    $("#optimize-btn").textContent = "Analyze Traces & Optimize Prompts";
+  }
+}
 </script>
 </body>
 </html>

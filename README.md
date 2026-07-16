@@ -1,106 +1,100 @@
-# blog-agents
+# Loop Engineering Blog Agent (blog-agents)
 
-A five-agent blog-writing pipeline with a verifier-gated revision loop. One
-container, one process: FastAPI serves the UI and runs the LangGraph pipeline
-in-process against a local LLM (Ollama or LM Studio).
+A showcase of the **Four-Loop Stack of Loop Engineering** built on FastAPI, LangGraph, and local LLMs (Ollama or LM Studio). One container, one process: serves an interactive UI and runs the pipeline in-process.
 
 ```
-research → outline → seo → writer → reviewer ─┬─ approve / minor-only ─→ save
-                              ↑                └─ blocker & under limit ─→ writer
-                              └──────────── revision (targeted) ─────────┘
+                  [Level 3: Event-Driven Loop] ──► Trigger (Webhook/Cron)
+                                                        │
+                                                        ▼
+                                         [Level 1: Agent Loop (Research)]
+                                           (Reason ◄─► Act [Search Tool])
+                                                        │
+                                                        ▼
+                                              [Outline & SEO Nodes]
+                                                        │
+                                                        ▼
+                                               [Writer Agent]
+                                                        │
+                                                        ▼
+                                     [Level 2: Verification Loop (Reviewer)]
+                                       (Grade Draft against Rubric)
+                                       ├───► [FAIL] ──► Route back to Writer (Revision)
+                                       └───► [PASS] ──► Save Post & Log Trace
+                                                            │
+                                                            ▼
+                                        [Level 4: Hill-Climbing Loop (Engine)]
+                                          (Analyze Traces ──► Update Prompts)
 ```
 
-## Why one container
+## Features
 
-The pipeline is sequential and every agent calls the same single local model, so
-there's nothing to scale independently. A single process is the right size:
-agents are function calls, progress streams over an in-memory queue, no Redis, no
-inter-service HTTP. The module layout still keeps clean seams (`agents/`,
-`pipeline.py`, `llm.py`, `schemas.py`), so if one agent ever needs its own model
-or box, promoting it to a service is a contained change rather than a rewrite.
+### 1. Loop 1: The Agent Loop (Reasoning & Tools)
+The **Research Agent** runs a tool-use loop:
+- Planners formulate search queries based on the topic.
+- The agent calls the `search_web` tool (defined in `app/tools.py`) to gather facts and citations.
+- It iterates until enough search results are gathered, then synthesizes a structured `ResearchBrief`.
+
+### 2. Loop 2: The Verification Loop (Quality Guardrails)
+The **Reviewer Agent** runs automated evaluation checks on drafts before human or LLM critique:
+- **Programmatic Rubric Checks**: Word count verification, SEO keyword density check, structure check (headings presence), and a check for forbidden clichés (e.g., "delve", "tapestry").
+- Fails trigger blockers that route execution back to the Writer with specific instructions for targeted editing.
+
+### 3. Loop 3: The Event-Driven Loop (Schedules & Webhooks)
+Integrates the agent pipeline into the surrounding ecosystem:
+- **Cron Schedules**: A background task runner in FastAPI that executes blog runs periodically.
+- **Webhook endpoint (`POST /api/webhook`)**: Allows external systems (CI/CD, GitHub, Slack) to trigger a blog-writing run programmatically.
+
+### 4. Loop 4: The Hill-Climbing Loop (Continuous Self-Improvement)
+The agent system programmatically learns from its own history:
+- Telemetry and verification outputs are logged as traces in `output/traces.json`.
+- A trace optimizer agent ("Engine") periodically analyzes trace logs to identify failure patterns.
+- It compiles optimized style and formatting rules into `learned_guidelines.txt`, which are automatically loaded and appended to the Writer Agent's system prompt for subsequent runs.
+
+---
+
 ## Prerequisites
 
-Before running the application, ensure you have the following installed:
+Ensure you have the following installed:
 - **Docker & Docker Compose** (recommended for containerized setup)
 - **Python 3.9+** (required for local runs)
-- An LLM backend: **Ollama** (running locally) or **LM Studio**
+- An LLM backend: **Ollama** or **LM Studio**
 
-## Run
+---
+
+## Quick Start
+
+### Activation (Without Docker)
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start the Web UI & API server**:
+   ```bash
+   python -m app.server
+   ```
+   Open [http://localhost:8000](http://localhost:8000) to view the Loop Engineering Dashboard.
+
+### running with Docker
 
 ```bash
-cp .env.example .env
 docker compose up --build
 docker compose exec ollama ollama pull llama3.1     # first run only
 ```
 
-Open http://localhost:8000. (`make up`, `make pull-model`, `make logs`, `make down`.)
-
-Using a model already on the host (LM Studio, or your own Ollama)? Drop the
-`ollama` service and set `BLOG_BASE_URL=http://host.docker.internal:11434/v1`
-(or `:1234/v1` + `BLOG_PROVIDER=lmstudio`) in `.env`.
-
-### Without Docker
-
-```bash
-pip install -r requirements.txt
-uvicorn app.server:app --port 8000     # web UI  (make dev)
-python -m app.cli "your topic here"    # or the CLI
-```
-
-## The interface
-
-![UI screenshot](assets/screenshot.png)
-
-The UI streams each stage live: the pipeline board lights each agent as it runs,
-and the reviewer→writer **feedback cable** pulses whenever a revision routes —
-the loop is the thing you watch. Finished posts render with their SEO metadata
-and Copy / Download buttons, and are written to `./output`.
-
-## The revision loop
-
-The reviewer only reports — it returns a `verdict` plus issues tagged
-`blocker`/`minor`. `pipeline.route_after_review` owns the branch: approve or
-minor-only → save; blockers under the limit → back to the writer with the issues
-attached (targeted edit, not a rewrite); at the limit → save with a warning
-banner listing what's unresolved. Cap with `BLOG_MAX_REVISIONS` (default 2).
-
-## Reliable JSON from local models
-
-In `app/llm.py`: the Pydantic schema is passed as `response_format` for
-grammar-constrained decoding, the schema is also stated in the prompt (Ollama
-doesn't inject it), and output is validated with a one-shot repair retry, falling
-back from `json_schema` to `json_object` mode for servers that reject it.
-
-## Layout
-
-```
-app/
-  server.py      FastAPI: serves UI, streams a run as NDJSON
-  cli.py         same pipeline from the terminal
-  pipeline.py    LangGraph graph + routing + revision loop
-  agents/        research · outline · seo · writer · reviewer (run functions)
-  llm.py         the only module that calls the model
-  schemas.py     Pydantic contracts between agents
-  config.py      model backend + revision limit
-  prompts/       one prompt per agent
-  web/index.html the UI
-Dockerfile · docker-compose.yml (app + ollama) · Makefile
-tests/           schema, loop, and server tests — all run offline
-```
-
-## Tests (offline — no Docker or model needed)
-
-```bash
-python -m tests.run_all        # or: pytest -q
-```
-
-- `test_schemas` — contracts parse + round-trip.
-- `test_loop` — all four revision-loop paths with the model faked, events captured.
-- `test_server` — a full run streamed through the HTTP endpoint, ending in a saved post.
+---
 
 ## Configuration
 
-The application can be configured using environment variables (stored in `.env`).
+The application is configured using environment variables (stored in `.env`).
+
+### General Config
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -113,30 +107,55 @@ The application can be configured using environment variables (stored in `.env`)
 | `BLOG_MAX_REVISIONS` | Max number of verifier-gated revision loop cycles | `2` |
 | `OUTPUT_DIR` | Location where generated markdown posts are saved | `output` |
 
-## Contributing
+### Search API Configuration (Level 1 Agent Loop)
 
-Contributions are welcome! To set up a development environment locally:
+You can specify a search provider by setting `SEARCH_PROVIDER` to `tavily`, `brave`, `serper`, `google`, or `mock`. If not set, it is auto-detected based on the environment keys:
 
-1. **Clone the repository**:
-   ```bash
-   git clone git@github.com:siddik-web/blog-agents.git
-   cd blog-agents
-   ```
+| Provider | Environment Variables Required | Description |
+|---|---|---|
+| **Tavily** | `TAVILY_API_KEY` | Search API optimized for LLMs (recommended). |
+| **Brave Search** | `BRAVE_API_KEY` | Web search API from Brave. |
+| **Serper** | `SERPER_API_KEY` | Fast Google Search API via serper.dev. |
+| **Google CSE** | `GOOGLE_API_KEY`, `GOOGLE_CSE_ID` | Standard Google Custom Search Engine API. |
+| **Mock** | *None* | Fallback local simulated results (default). |
 
-2. **Create a virtual environment and install dependencies**:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
+---
 
-3. **Run the offline test suite**:
-   ```bash
-   python -m tests.run_all
-   ```
+## The Dashboard Interface
 
-Please format code properly and ensure all unit tests pass before submitting a Pull Request.
+The updated web interface showcases the 4 loops visually:
+- **1. Pipeline Workspace**: Run manual topics, inspect Level 1 tool calls, watch Level 2 verification checklists update in real-time.
+- **2. Scheduler & Webhooks**: Configure cron triggers, view trigger history, and copy webhook commands.
+- **3. Hill-Climbing Auto-Opt**: Inspect recent traces, view programmatically generated writing rules, and trigger prompt optimization with one click.
 
-## License
+---
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+## Run Tests (Offline)
+
+Run the full offline test suite (no Docker or running LLM needed):
+```bash
+python -m tests.run_all
+```
+
+- `test_schemas` — Schema serialization validation.
+- `test_loop` — Controls loop logic (approve, revise, cap limits).
+- `test_server` — Endpoint validation and streaming output.
+- `test_engine` — Verify Level 4 trace logging and prompt auto-optimization.
+
+---
+
+## Layout
+
+```
+app/
+  server.py         FastAPI: UI server, schedules, webhooks
+  pipeline.py       LangGraph workflow definition & routing
+  emitter.py        Context-scoped emitter (avoids circular imports)
+  tools.py          Search tools for Agent Loop
+  engine.py         Trace logging & optimization (Hill Climbing)
+  agents/           research · outline · seo · writer · reviewer
+  llm.py            LLM client wrapper & JSON repair helper
+  schemas.py        Pydantic data models
+  web/index.html    Dashboard UI
+tests/              Offline test suite
+```

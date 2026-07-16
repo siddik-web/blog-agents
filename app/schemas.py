@@ -68,6 +68,12 @@ class ReviewIssue(BaseModel):
     suggestion: str = Field(description="Concrete, actionable fix the writer can apply.")
 
 
+class VerificationCheck(BaseModel):
+    name: str
+    status: Literal["passed", "failed"]
+    detail: str
+
+
 class ReviewNotes(BaseModel):
     """The reviewer only reports. It never decides whether to loop.
 
@@ -78,6 +84,7 @@ class ReviewNotes(BaseModel):
     verdict: Literal["approve", "revise"]
     summary: str
     issues: list[ReviewIssue] = Field(default_factory=list)
+    checks: list[VerificationCheck] = Field(default_factory=list)
 
     def blockers(self) -> list[ReviewIssue]:
         return [i for i in self.issues if i.severity == Severity.blocker]

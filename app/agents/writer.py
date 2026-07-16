@@ -41,6 +41,10 @@ def run(
     review: ReviewNotes | None = None,
     revision: int = 0,
 ) -> Draft:
+    from app.engine import get_learned_guidelines
+    guidelines = get_learned_guidelines()
+    guidelines_block = f"\n## ADAPTIVE STYLE RULES (HILL-CLIMBING LOOP)\nApply these rules compiled from past trace analysis:\n{guidelines}\n" if guidelines else ""
+
     prompt = llm.load_prompt("writer").format(
         audience=brief.audience,
         brief_json=brief.model_dump_json(indent=2),
@@ -48,4 +52,7 @@ def run(
         seo_json=seo.model_dump_json(indent=2),
         revision_block=_revision_block(review, revision),
     )
+    if guidelines_block:
+        prompt += guidelines_block
+        
     return llm.generate("writer", prompt, Draft)

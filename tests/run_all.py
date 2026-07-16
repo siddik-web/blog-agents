@@ -2,7 +2,7 @@
 from __future__ import annotations
 import importlib, traceback
 
-MODULES = ["tests.test_schemas", "tests.test_loop", "tests.test_server"]
+MODULES = ["tests.test_schemas", "tests.test_loop", "tests.test_server", "tests.test_engine"]
 
 
 def main():

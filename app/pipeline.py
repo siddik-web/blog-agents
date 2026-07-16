@@ -29,18 +29,9 @@ from app.agents import reviewer as reviewer_agent
 from app.agents import seo as seo_agent
 from app.agents import writer as writer_agent
 from app.schemas import Draft, Outline, ResearchBrief, ReviewNotes, SEOReport
+from app.engine import log_run_trace
 
-_emitter: contextvars.ContextVar = contextvars.ContextVar("emitter", default=None)
-
-
-def set_emitter(fn):
-    _emitter.set(fn)
-
-
-def emit(kind, stage=None, **data):
-    fn = _emitter.get()
-    if fn is not None:
-        fn({"kind": kind, "stage": stage, **data})
+from app.emitter import emit, set_emitter
 
 
 class BlogState(TypedDict, total=False):
@@ -132,6 +123,7 @@ def save_node(state):
         "primary_keyword": seo.primary_keyword, "revisions": state.get("revision_count", 0),
         "content": text,
     })
+    log_run_trace(state, str(path))
     return {"output_path": str(path)}
 
 

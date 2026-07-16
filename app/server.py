@@ -1,32 +1,67 @@
 """Single-container web app: serves the UI and streams a run in-process.
 
-The pipeline runs in a worker thread whose emitter pushes onto an in-memory
-queue; the /api/run response drains it as newline-delimited JSON. No Redis, no
-inter-service calls — one process does everything.
+Also implements Level 3 Event-Driven Loop (Schedules, Cron, Webhook Triggers).
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import queue
 import threading
+import time
 from pathlib import Path
+from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app import config, pipeline
+from app.engine import get_traces, get_learned_guidelines, run_optimization
 
 app = FastAPI(title="blog-agents")
 WEB = Path(__file__).parent / "web"
 _DONE = object()
+
+# Level 3: Event-Driven Loop State
+schedules = [
+    {
+        "id": "1",
+        "topic": "Loop Engineering in AI Agents",
+        "audience": "developers",
+        "interval_seconds": 60,
+        "enabled": False,
+        "last_run": None,
+    },
+    {
+        "id": "2",
+        "topic": "Why Local LLMs are the Future",
+        "audience": "general readers",
+        "interval_seconds": 120,
+        "enabled": False,
+        "last_run": None,
+    },
+]
+
+scheduled_runs_log = []
 
 
 class RunRequest(BaseModel):
     topic: str
     audience: str = "general readers"
     max_revisions: int = config.MAX_REVISIONS
+
+
+class WebhookRequest(BaseModel):
+    topic: str
+    audience: str = "general readers"
+
+
+class ScheduleCreateRequest(BaseModel):
+    topic: str
+    audience: str = "general readers"
+    interval_seconds: int = 60
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -76,6 +111,122 @@ def run(req: RunRequest) -> StreamingResponse:
             yield json.dumps(item) + "\n"
 
     return StreamingResponse(stream(), media_type="application/x-ndjson")
+
+
+# Level 3 API Endpoints
+@app.get("/api/schedules")
+def get_schedules():
+    return {"schedules": schedules, "history": scheduled_runs_log}
+
+
+@app.post("/api/schedules/create")
+def create_schedule(req: ScheduleCreateRequest):
+    new_id = str(len(schedules) + 1)
+    s = {
+        "id": new_id,
+        "topic": req.topic,
+        "audience": req.audience,
+        "interval_seconds": req.interval_seconds,
+        "enabled": True,
+        "last_run": None,
+    }
+    schedules.append(s)
+    return {"status": "created", "schedule": s}
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+def toggle_schedule(schedule_id: str):
+    for s in schedules:
+        if s["id"] == schedule_id:
+            s["enabled"] = not s["enabled"]
+            # Reset last run to start immediately if enabled
+            if s["enabled"]:
+                s["last_run"] = None
+            return {"status": "updated", "schedule": s}
+    raise HTTPException(status_code=404, detail="Schedule not found")
+
+
+@app.post("/api/webhook")
+def trigger_webhook(req: WebhookRequest):
+    # Trigger a background run as if by webhook
+    log_entry = {
+        "id": f"webhook-{int(time.time())}",
+        "topic": req.topic,
+        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "Running (Webhook)",
+    }
+    scheduled_runs_log.append(log_entry)
+
+    def bg_runner(entry_id, t, a):
+        try:
+            pipeline.run(t, a)
+            for l in scheduled_runs_log:
+                if l["id"] == entry_id:
+                    l["status"] = "Completed"
+        except Exception as e:
+            for l in scheduled_runs_log:
+                if l["id"] == entry_id:
+                    l["status"] = f"Failed: {str(e)}"
+
+    threading.Thread(target=bg_runner, args=(log_entry["id"], req.topic, req.audience), daemon=True).start()
+    return {"status": "triggered", "log_id": log_entry["id"]}
+
+
+# Level 3 Cron/Schedule Loop
+async def scheduler_loop():
+    while True:
+        await asyncio.sleep(2)
+        now = time.time()
+        for s in schedules:
+            if s["enabled"]:
+                last = s["last_run"]
+                if last is None or (now - last) >= s["interval_seconds"]:
+                    s["last_run"] = now
+                    topic = s["topic"]
+                    audience = s["audience"]
+
+                    log_entry = {
+                        "id": f"cron-{s['id']}-{int(now)}",
+                        "topic": topic,
+                        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "status": "Running",
+                    }
+                    scheduled_runs_log.append(log_entry)
+
+                    def bg_runner(entry_id, t, a):
+                        try:
+                            pipeline.run(t, a)
+                            for l in scheduled_runs_log:
+                                if l["id"] == entry_id:
+                                    l["status"] = "Completed"
+                        except Exception as e:
+                            for l in scheduled_runs_log:
+                                if l["id"] == entry_id:
+                                    l["status"] = f"Failed: {str(e)}"
+
+                    threading.Thread(target=bg_runner, args=(log_entry["id"], topic, audience), daemon=True).start()
+
+
+@app.get("/api/traces")
+def api_get_traces():
+    return {"traces": get_traces()}
+
+
+@app.get("/api/guidelines")
+def api_get_guidelines():
+    return {"guidelines": get_learned_guidelines()}
+
+
+@app.post("/api/optimize")
+def api_run_optimization():
+    res = run_optimization()
+    return res
+
+
+@app.on_event("startup")
+def startup_event():
+    loop = asyncio.get_event_loop()
+    loop.create_task(scheduler_loop())
 
 
 def main():
