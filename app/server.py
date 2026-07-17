@@ -11,7 +11,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -221,6 +221,49 @@ def api_get_guidelines():
 def api_run_optimization():
     res = run_optimization()
     return res
+
+
+class SettingsUpdateRequest(BaseModel):
+    wp_url: Optional[str] = None
+    wp_username: Optional[str] = None
+    wp_password: Optional[str] = None
+    wp_default_categories: Optional[List[str]] = None
+
+
+
+@app.get("/api/settings")
+def get_settings():
+    return config.get_wp_config()
+
+
+@app.post("/api/settings")
+def update_settings(req: SettingsUpdateRequest):
+    out_dir = Path(config.OUTPUT_DIR)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    settings_file = out_dir / "settings.json"
+    
+    current_settings = {}
+    if settings_file.exists():
+        try:
+            with open(settings_file, "r", encoding="utf-8") as f:
+                current_settings = json.load(f)
+        except Exception:
+            pass
+            
+    if req.wp_url is not None:
+        current_settings["wp_url"] = req.wp_url.strip()
+    if req.wp_username is not None:
+        current_settings["wp_username"] = req.wp_username.strip()
+    if req.wp_password is not None:
+        current_settings["wp_password"] = req.wp_password.strip()
+    if req.wp_default_categories is not None:
+        current_settings["wp_default_categories"] = req.wp_default_categories
+        
+    with open(settings_file, "w", encoding="utf-8") as f:
+        json.dump(current_settings, f, indent=2)
+        
+    return {"status": "success", "settings": config.get_wp_config()}
+
 
 
 @app.on_event("startup")

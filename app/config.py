@@ -47,3 +47,42 @@ MAX_REVISIONS = int(os.getenv("BLOG_MAX_REVISIONS", "2"))
 # Where finished posts land. Relative for local runs; the container sets it to a
 # mounted volume path via OUTPUT_DIR.
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
+
+
+def get_wp_config() -> dict:
+    """Return the active WordPress config, dynamically loading overrides from settings.json."""
+    import json
+    from pathlib import Path
+
+    url = os.getenv("WP_URL")
+    username = os.getenv("WP_USERNAME")
+    password = os.getenv("WP_APPLICATION_PASSWORD")
+    categories = [c.strip() for c in os.getenv("WP_DEFAULT_CATEGORIES", "Uncategorized").split(",") if c.strip()]
+
+    settings_file = Path(OUTPUT_DIR) / "settings.json"
+    if settings_file.exists():
+        try:
+            with open(settings_file, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+                if settings.get("wp_url"):
+                    url = settings["wp_url"]
+                if settings.get("wp_username"):
+                    username = settings["wp_username"]
+                if settings.get("wp_password"):
+                    password = settings["wp_password"]
+                if "wp_default_categories" in settings:
+                    cats = settings["wp_default_categories"]
+                    if isinstance(cats, str):
+                        categories = [c.strip() for c in cats.split(",") if c.strip()]
+                    elif isinstance(cats, list):
+                        categories = cats
+        except Exception:
+            pass
+
+    return {
+        "url": url,
+        "username": username,
+        "password": password,
+        "default_categories": categories,
+    }
+

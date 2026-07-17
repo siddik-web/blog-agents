@@ -45,7 +45,9 @@ _REPAIR = (
 def _client():
     from openai import OpenAI
 
-    return OpenAI(base_url=config.BASE_URL, api_key=config.API_KEY or "not-needed")
+    # Use a generous timeout for local models that need loading/warmup
+    return OpenAI(base_url=config.BASE_URL, api_key=config.API_KEY or "not-needed", timeout=120.0)
+
 
 
 def load_prompt(name: str) -> str:

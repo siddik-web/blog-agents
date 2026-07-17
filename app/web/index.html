@@ -210,6 +210,7 @@
     <button class="tab-btn active" onclick="switchTab('workspace')">1. Pipeline Workspace</button>
     <button class="tab-btn" onclick="switchTab('scheduler')">3. Scheduler & Webhooks</button>
     <button class="tab-btn" onclick="switchTab('optimizer')">4. Hill-Climbing Auto-Opt</button>
+    <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
   </nav>
 
   <!-- TAB 1: WORKSPACE -->
@@ -253,6 +254,8 @@
       <div class="mod" id="m-reviewer"><div class="stat"></div><div class="n">05</div><h3>Reviewer (Loop 2)</h3><div class="read">—</div></div>
       <div class="connector" data-c="4"></div>
       <div class="mod" id="m-save"><div class="stat"></div><div class="n">06</div><h3>Save</h3><div class="read">—</div></div>
+      <div class="connector" data-c="5"></div>
+      <div class="mod" id="m-publish"><div class="stat"></div><div class="n">07</div><h3>WordPress</h3><div class="read">—</div></div>
     </div>
 
     <div class="lower">
@@ -380,11 +383,42 @@
       </div>
     </div>
   </div>
+
+  <!-- TAB 4: SETTINGS -->
+  <div id="tab-settings" class="tab-content">
+    <div class="schedule-container" style="grid-template-columns: 1fr;">
+      <div class="scheduler-form" style="max-width: 600px; margin: 0 auto;">
+        <h3 style="margin-top:0;font-size:16px;letter-spacing:-.01em">WordPress Integration Settings</h3>
+        <p style="font-size:12px;color:var(--muted);margin-top:-6px">Configure your WordPress URL, Username, and Application Password to enable dynamic publishing.</p>
+        
+        <div style="display:grid;gap:12px;margin-top:16px">
+          <div class="field">
+            <label for="wp-url">WordPress Site URL</label>
+            <input id="wp-url" placeholder="e.g. http://wordpress.test/" />
+          </div>
+          <div class="field">
+            <label for="wp-username">WordPress Username</label>
+            <input id="wp-username" placeholder="e.g. admin" />
+          </div>
+          <div class="field">
+            <label for="wp-password">WordPress Application Password</label>
+            <input id="wp-password" type="password" placeholder="e.g. xxxx xxxx xxxx xxxx" />
+          </div>
+          <div class="field">
+            <label for="wp-categories">Default Categories (Comma-separated)</label>
+            <input id="wp-categories" placeholder="e.g. Technology, AI Agents" />
+          </div>
+          <button class="primary-btn" onclick="saveSettings()" id="save-settings-btn" style="margin-top:4px">Save Settings</button>
+          <div id="settings-status" style="font-size: 12px; margin-top: 6px; font-family: var(--mono);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
-const MODS=["research","outline","seo","writer","reviewer","save"];
+const MODS=["research","outline","seo","writer","reviewer","save","publish"];
 let raw="", fullContent="", startTs=0, timerId=null;
 
 /* ---- navigation ---- */
@@ -398,6 +432,7 @@ function switchTab(tabId){
   if(tabId==='workspace') drawCable();
   if(tabId==='scheduler') fetchSchedules();
   if(tabId==='optimizer') { fetchTraces(); fetchGuidelines(); }
+  if(tabId==='settings') { fetchSettings(); }
 }
 
 /* ---- health ---- */
@@ -426,7 +461,7 @@ function resetBoard(){
     const b=mod(n).querySelector(".badge");if(b)b.remove();
     const rb=mod(n).querySelector(".rubric-box");if(rb)rb.remove();
   });
-  for(let i=0;i<5;i++)connector(i,false);
+  for(let i=0;i<6;i++)connector(i,false);
   $("#result").classList.add("hidden");
   $("#log").innerHTML="";
 }
@@ -549,6 +584,21 @@ function handle(ev){
       logRow(rev?"approve":"revise",`reviewer verdict: <b>${d.verdict}</b> — ${d.blockers} blocker(s), ${d.minor} minor`,issues);
     }
     if(s==="save"){ setState(s,d.unresolved?"warn":"done"); read(s,`saved<br>${d.unresolved?d.unresolved+" open blocker(s)":"clean"}`); showResult(d); }
+    if(s==="publish"){
+      if(d.status==="published"){
+        setState(s,"done");
+        read(s,`published<br><a href="${d.link}" target="_blank" style="color:var(--signal);word-break:break-all;text-decoration:underline;">view draft</a>`);
+        logRow("approve",`<b>published draft to wordpress</b> · <a href="${d.link}" target="_blank">${d.link}</a>`);
+      } else if(d.status==="skipped"){
+        setState(s,"");
+        read(s,`skipped<br>${d.reason}`);
+        logRow("signal",`wordpress publish skipped: ${d.reason}`);
+      } else {
+        setState(s,"warn");
+        read(s,`failed<br>${d.error}`);
+        logRow("blocker",`wordpress publish failed: ${d.error}`);
+      }
+    }
     return;
   }
   if(ev.kind==="route"){
@@ -721,6 +771,60 @@ async function triggerOptimization(){
   finally{
     $("#optimize-btn").disabled = false;
     $("#optimize-btn").textContent = "Analyze Traces & Optimize Prompts";
+  }
+}
+
+/* ---- WordPress Settings ---- */
+async function fetchSettings(){
+  try {
+    const r = await fetch("/api/settings");
+    const j = await r.json();
+    $("#wp-url").value = j.url || "";
+    $("#wp-username").value = j.username || "";
+    $("#wp-password").value = j.password || "";
+    $("#wp-categories").value = (j.default_categories || []).join(", ");
+    $("#settings-status").textContent = "";
+  } catch(e) {
+    console.error("Error fetching settings:", e);
+  }
+}
+
+async function saveSettings(){
+  const wp_url = $("#wp-url").value.trim();
+  const wp_username = $("#wp-username").value.trim();
+  const wp_password = $("#wp-password").value.trim();
+  const wp_categories_str = $("#wp-categories").value.trim();
+  const wp_default_categories = wp_categories_str ? wp_categories_str.split(",").map(c => c.trim()).filter(Boolean) : [];
+  
+  $("#save-settings-btn").disabled = true;
+  $("#save-settings-btn").textContent = "Saving...";
+  
+  try {
+    const r = await fetch("/api/settings", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        wp_url,
+        wp_username,
+        wp_password,
+        wp_default_categories
+      })
+    });
+    const j = await r.json();
+    if (j.status === "success") {
+      $("#settings-status").style.color = "var(--approve)";
+      $("#settings-status").textContent = "Settings saved successfully!";
+      setTimeout(() => { $("#settings-status").textContent = ""; }, 3000);
+    } else {
+      $("#settings-status").style.color = "var(--blocker)";
+      $("#settings-status").textContent = "Error saving settings.";
+    }
+  } catch(e) {
+    $("#settings-status").style.color = "var(--blocker)";
+    $("#settings-status").textContent = "Connection error: " + e.message;
+  } finally {
+    $("#save-settings-btn").disabled = false;
+    $("#save-settings-btn").textContent = "Save Settings";
   }
 }
 </script>

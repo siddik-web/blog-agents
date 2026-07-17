@@ -127,6 +127,46 @@ def save_node(state):
     return {"output_path": str(path)}
 
 
+def publish_node(state):
+    emit("start", "publish")
+    
+    wp_config = config.get_wp_config()
+    wp_url = wp_config.get("url")
+    username = wp_config.get("username")
+    password = wp_config.get("password")
+    
+    if not (wp_url and username and password):
+        emit("done", "publish", detail={"status": "skipped", "reason": "WordPress configuration missing"})
+        return {}
+        
+    from app.wordpress import publish_to_wordpress
+    
+    draft = state["draft"]
+    seo = state["seo"]
+    excerpt = seo.meta_description
+    slug = seo.slug or _slugify(draft.title)
+    tags = [seo.primary_keyword] + seo.secondary_keywords
+    categories = wp_config.get("default_categories")
+    
+    try:
+        post_link = publish_to_wordpress(
+            wp_url=wp_url,
+            username=username,
+            app_password=password,
+            title=draft.title,
+            markdown_content=draft.markdown,
+            excerpt=excerpt,
+            slug=slug,
+            tags=tags,
+            categories=categories
+        )
+        emit("done", "publish", detail={"status": "published", "link": post_link})
+    except Exception as e:
+        emit("done", "publish", detail={"status": "failed", "error": str(e)})
+        
+    return {}
+
+
 def route_after_review(state):
     review = state["review"]
     limit = state.get("max_revisions", config.MAX_REVISIONS)
@@ -148,6 +188,7 @@ def build_graph():
     for name, node in [
         ("research", research_node), ("outline", outline_node), ("seo", seo_node),
         ("writer", writer_node), ("reviewer", reviewer_node), ("save", save_node),
+        ("publish", publish_node)
     ]:
         g.add_node(name, node)
     g.add_edge(START, "research")
@@ -156,8 +197,10 @@ def build_graph():
     g.add_edge("seo", "writer")
     g.add_edge("writer", "reviewer")
     g.add_conditional_edges("reviewer", route_after_review, {"writer": "writer", "save": "save"})
-    g.add_edge("save", END)
+    g.add_edge("save", "publish")
+    g.add_edge("publish", END)
     return g.compile()
+
 
 
 def _slugify(text: str) -> str:
